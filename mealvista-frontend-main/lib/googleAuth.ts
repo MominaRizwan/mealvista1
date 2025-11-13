@@ -88,10 +88,27 @@ export const buildGoogleAuthRequestConfig = (platform: string, ids: GoogleClient
   if (platform === 'web') {
     if (ids.webClientId) {
       config.webClientId = ids.webClientId;
+      // For web, use useProxy to handle the OAuth flow better
+      config.useProxy = true;
+      
+      // Set common localhost URIs
+      const port = typeof window !== 'undefined' && window.location.port ? `:${window.location.port}` : '';
+      const baseUrl = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.hostname}${port}` : 'http://localhost:8082';
+      
+      config.redirectUrl = `${baseUrl}/`;
     }
   } else if (ids.webClientId) {
     // Include webClientId for other platforms if available (helps with some flows)
     config.webClientId = ids.webClientId;
+  }
+
+  if (__DEV__) {
+    console.log('[Google Auth] Config for platform', platform, ':', {
+      webClientId: config.webClientId ? '✓' : '✗',
+      redirectUrl: config.redirectUrl,
+      scopes: config.scopes,
+      useProxy: config.useProxy,
+    });
   }
 
   return config;

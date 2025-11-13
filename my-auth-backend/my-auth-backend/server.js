@@ -31,6 +31,14 @@ const app = express();
 // Middleware
 app.use(express.json());
 
+// Add request logging middleware
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  }
+  next();
+});
+
 const corsOptions = {
   origin: '*',
   credentials: true,

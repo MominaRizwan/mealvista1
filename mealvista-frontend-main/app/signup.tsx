@@ -57,48 +57,74 @@ export default function MealVistaSignUp() {
 
     useEffect(() => {
       const handleGoogleResponse = async () => {
-        if (!response) return;
+        if (!response) {
+          console.log('[Google Sign-Up] useEffect: No response yet');
+          return;
+        }
 
-        if (response.type === "success" && response.authentication?.idToken) {
+        console.log('[Google Sign-Up] useEffect triggered with response:', response);
+
+        // Extract idToken from response - different structures for web vs mobile
+        const idToken = (response as any)?.authentication?.idToken || (response as any)?.idToken || (response as any)?.params?.id_token;
+        
+        console.log('[Google Sign-Up] 📊 IdToken found:', !!idToken, 'type of response:', typeof response);
+
+        if (response.type === "success" && idToken) {
           try {
+            console.log('[Google Sign-Up] ✅ Google authentication successful, calling backend...');
             setGoogleLoading(true);
-            const authResponse = await loginWithGoogle({ idToken: response.authentication.idToken });
+            const authResponse = await loginWithGoogle({ idToken });
+            console.log('[Google Sign-Up] ✅ Backend responded successfully');
             setErrorMessage(null);
             // Route based on user role
             if (authResponse.user?.isAdmin === true || authResponse.user?.role === 'admin') {
+              console.log('[Google Sign-Up] 🔄 Redirecting to admin dashboard');
               router.replace("/admin/dashboard");
             } else {
               // Check if onboarding is complete (for existing Google users)
+              console.log('[Google Sign-Up] 🔄 Checking onboarding status...');
               const onboardingComplete = await getOnboardingStatus();
+              console.log('[Google Sign-Up] Onboarding complete:', onboardingComplete);
+              
               if (onboardingComplete) {
+                console.log('[Google Sign-Up] 🔄 Redirecting to home');
                 router.replace("/home");
               } else {
+                console.log('[Google Sign-Up] 🔄 Redirecting to dietary preference');
                 router.replace("/dietaryPreference");
               }
             }
           } catch (error: unknown) {
-            console.error('[Google Sign-Up] Backend error:', error);
+            console.error('[Google Sign-Up] ❌ Backend error:', error);
             const message =
               typeof error === "object" && error !== null && "response" in error
                 ? (error as any).response?.data?.message ?? "Google sign-up failed"
+                : typeof error === "object" && error !== null && "message" in error
+                ? (error as any).message
                 : "Google sign-up failed";
             setErrorMessage(message);
-          } finally {
             setGoogleLoading(false);
           }
+        } else if (response.type === "success" && !idToken) {
+          console.error("[Google Sign-Up] ⚠️  Missing ID token. Response:", JSON.stringify(response));
+          setErrorMessage("Google sign-up failed. No ID token was returned.");
+          setGoogleLoading(false);
         } else if (response.type === "error") {
-          console.error('[Google Sign-Up] OAuth error:', response.error);
-          const errorMsg = response.error?.message || "Google sign-up failed. Please try again.";
+          console.error('[Google Sign-Up] 🔴 OAuth error:', (response as any)?.error);
+          const errorMsg = (response as any)?.error?.message || "Google sign-up failed. Please try again.";
           setErrorMessage(errorMsg);
           setGoogleLoading(false);
         } else if (response.type === "cancel") {
+          console.log('[Google Sign-Up] User cancelled sign-up');
           setErrorMessage("Google sign-up was cancelled.");
           setGoogleLoading(false);
+        } else {
+          console.log('[Google Sign-Up] Other response type:', response.type);
         }
       };
 
       handleGoogleResponse();
-    }, [response, router]);
+    }, [response]);
 
     return (
       <TouchableOpacity
@@ -119,15 +145,78 @@ export default function MealVistaSignUp() {
           try {
             setErrorMessage(null);
             setGoogleLoading(true);
+            console.log('[Google Sign-Up] Button pressed, starting promptAsync...');
+            
             const result = await promptAsync();
-            if (result.type !== "success") {
+            console.log('[Google Sign-Up] promptAsync returned:', result?.type);
+            console.log('[Google Sign-Up] Result keys:', Object.keys(result || {}));
+            console.log('[Google Sign-Up] Full result object:', JSON.stringify(result, null, 2));
+            console.log('[Google Sign-Up] result.authentication:', (result as any)?.authentication);
+            console.log('[Google Sign-Up] result.params:', (result as any)?.params);
+            console.log('[Google Sign-Up] result.idToken:', (result as any)?.idToken);
+            
+            // Handle the result directly from promptAsync (don't rely on response state hook)
+            if (!result || result.type !== "success") {
+              console.log('[Google Sign-Up] promptAsync did not return success');
               setGoogleLoading(false);
-              if (result.type === "cancel") {
+              if (result?.type === "cancel") {
                 setErrorMessage("Google sign-up was cancelled.");
+              } else if (result?.type === "error") {
+                setErrorMessage((result as any)?.error?.message || "Google sign-up failed");
+              }
+            } else {
+              console.log('[Google Sign-Up] ✅ promptAsync returned success, extracting token...');
+              
+              // Google returns accessToken on web, not idToken
+              // Send the accessToken to backend which will use it to get user info
+              const accessToken = (result as any)?.authentication?.accessToken;
+              console.log('[Google Sign-Up] 📊 AccessToken extracted:', !!accessToken, 'length:', accessToken?.length);
+              
+              if (!accessToken) {
+                console.error("[Google Sign-Up] ⚠️  Missing access token. Result:", JSON.stringify(result));
+                setErrorMessage("Google sign-up failed. No access token was returned.");
+                setGoogleLoading(false);
+                return;
+              }
+              
+              try {
+                console.log('[Google Sign-Up] ✅ Calling backend loginWithGoogle with accessToken...');
+                const authResponse = await loginWithGoogle({ accessToken });
+                console.log('[Google Sign-Up] ✅ Backend responded successfully');
+                setErrorMessage(null);
+                
+                // Route based on user role
+                if (authResponse.user?.isAdmin === true || authResponse.user?.role === 'admin') {
+                  console.log('[Google Sign-Up] 🔄 Redirecting to admin dashboard');
+                  router.replace("/admin/dashboard");
+                } else {
+                  // Check if onboarding is complete
+                  console.log('[Google Sign-Up] 🔄 Checking onboarding status...');
+                  const onboardingComplete = await getOnboardingStatus();
+                  console.log('[Google Sign-Up] Onboarding complete:', onboardingComplete);
+                  
+                  if (onboardingComplete) {
+                    console.log('[Google Sign-Up] 🔄 Redirecting to home');
+                    router.replace("/home");
+                  } else {
+                    console.log('[Google Sign-Up] 🔄 Redirecting to dietary preference');
+                    router.replace("/dietaryPreference");
+                  }
+                }
+              } catch (backendError: unknown) {
+                console.error('[Google Sign-Up] ❌ Backend error:', backendError);
+                const message =
+                  typeof backendError === "object" && backendError !== null && "response" in backendError
+                    ? (backendError as any).response?.data?.message ?? "Google sign-up failed"
+                    : typeof backendError === "object" && backendError !== null && "message" in backendError
+                    ? (backendError as any).message
+                    : "Google sign-up failed";
+                setErrorMessage(message);
+                setGoogleLoading(false);
               }
             }
           } catch (error) {
-            console.error("Google sign-up error", error);
+            console.error('[Google Sign-Up] Error during promptAsync:', error);
             setErrorMessage("Google sign-up failed. Please try again.");
             setGoogleLoading(false);
           }

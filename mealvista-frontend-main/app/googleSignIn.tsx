@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { loginWithGoogle } from "../lib/authService";
+import { getOnboardingStatus } from "../lib/onboardingStorage";
 import {
   buildGoogleAuthRequestConfig,
   getGoogleClientIdIssue,
@@ -59,7 +60,12 @@ export default function GoogleSignInScreen() {
           if (authResponse.user?.isAdmin === true || authResponse.user?.role === 'admin') {
             router.replace("/admin/dashboard");
           } else {
-          router.replace("/dietaryPreference");
+            const onboardingComplete = await getOnboardingStatus();
+            if (onboardingComplete) {
+              router.replace("/home");
+            } else {
+              router.replace("/dietaryPreference");
+            }
           }
         } catch (error: unknown) {
           console.error('[Google Sign-In] Backend error:', error);
@@ -72,6 +78,12 @@ export default function GoogleSignInScreen() {
         } finally {
           setIsLoading(false);
         }
+      } else if (response.type === "success") {
+        const message = "Google sign-in failed. No ID token was returned.";
+        console.error("[Google Sign-In] Missing ID token in response:", response);
+        setErrorMessage(message);
+        Alert.alert("Google Sign-In", message);
+        setIsLoading(false);
       } else if (response.type === "error") {
         console.error('[Google Sign-In] OAuth error:', response.error);
         const errorMsg = response.error?.message || "Google sign-in failed. Please try again.";

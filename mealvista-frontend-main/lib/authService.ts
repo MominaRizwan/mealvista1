@@ -66,14 +66,23 @@ export const login = async (data: { email: string; password: string }): Promise<
 };
 
 // Login with Google
-export const loginWithGoogle = async (data: { idToken: string }): Promise<AuthResponse> => {
+export const loginWithGoogle = async (data: { idToken?: string; accessToken?: string }): Promise<AuthResponse> => {
   try {
+    const tokenType = data.idToken ? 'idToken' : 'accessToken';
+    console.log('[authService] Calling /api/auth/google with', tokenType);
     const response = await api.post<AuthResponse>('/api/auth/google', data);
+    console.log('[authService] Google auth successful, received token');
     if (response.data.token) {
       await storeToken(response.data.token);
     }
     return response.data;
   } catch (error: any) {
+    console.error('[authService] Google auth error:', {
+      status: error?.response?.status,
+      message: error?.response?.data?.message,
+      endpoint: error?.config?.url,
+      errorMsg: error?.message
+    });
     throw error;
   }
 };
