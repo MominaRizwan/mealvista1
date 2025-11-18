@@ -111,40 +111,26 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: () => {
-            (async () => {
-              try {
-                await logout();
-              } catch (err) {
-                console.error("Logout error:", err);
-              } finally {
-                // Ensure we navigate to sign-in even if logout had errors.
-                try {
-                  router.replace("/signIn");
-                } catch (navErr) {
-                  // fallback push
-                  try {
-                    router.push("/signIn");
-                  } catch (e) {
-                    console.error('Navigation to signIn failed:', e);
-                  }
-                }
-              }
-            })();
-          },
-        },
-      ],
-      { cancelable: true }
-    );
+  const handleLogout = () => {
+    console.log("=== LOGOUT BUTTON CLICKED ===");
+    
+    // Immediately try to logout without alert for testing
+    (async () => {
+      try {
+        console.log("Clearing token...");
+        await logout();
+        console.log("Token cleared!");
+        
+        // Try using href instead of replace
+        console.log("Navigating using router.push...");
+        setTimeout(() => {
+          router.push("/signIn");
+        }, 100);
+        
+      } catch (err) {
+        console.error("Logout error:", err);
+      }
+    })();
   };
 
   const handleNameChange = (value: string) => {
@@ -192,7 +178,15 @@ export default function ProfileScreen() {
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+        <TouchableOpacity 
+          onPress={() => {
+            console.log("LOGOUT ICON TAPPED!");
+            handleLogout();
+          }} 
+          style={styles.logoutButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={0.6}
+        >
           <Ionicons name="log-out-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -333,7 +327,11 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   logoutButton: {
-    padding: 4,
+    padding: 8,
+    minWidth: 40,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     padding: 24,

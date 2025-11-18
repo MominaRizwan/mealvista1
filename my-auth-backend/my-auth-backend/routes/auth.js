@@ -105,6 +105,21 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
+    // Check if account is locked
+    if (user.accountLockedUntil && user.accountLockedUntil > new Date()) {
+      const minutesLeft = Math.ceil((user.accountLockedUntil - new Date()) / 60000);
+      return res.status(403).json({ 
+        message: `Account locked due to too many failed login attempts. Try again in ${minutesLeft} minute(s)` 
+      });
+    }
+
+    // Reset lock if time has passed
+    if (user.accountLockedUntil && user.accountLockedUntil <= new Date()) {
+      user.failedLoginAttempts = 0;
+      user.accountLockedUntil = null;
+      await user.save();
+    }
+
     // Check if user registered with Google
     if (!user.password) {
       return res.status(400).json({ 
@@ -115,8 +130,31 @@ router.post('/login', async (req, res) => {
     // Verify password
     const isMatch = await bcrypt.compare(rawPassword, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      // Increment failed attempts
+      user.failedLoginAttempts += 1;
+
+      // Lock account after 3 failed attempts for 15 minutes
+      if (user.failedLoginAttempts >= 3) {
+        user.accountLockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+        await user.save();
+        return res.status(403).json({ 
+          message: 'Account locked due to 3 failed login attempts. Try again in 15 minutes or reset your password.' 
+        });
+      }
+
+      await user.save();
+      const attemptsLeft = 3 - user.failedLoginAttempts;
+      return res.status(401).json({ 
+        message: `Invalid email or password. ${attemptsLeft} attempt(s) remaining`,
+        attemptsRemaining: attemptsLeft
+      });
     }
+
+    // Successful login - reset failed attempts
+    user.failedLoginAttempts = 0;
+    user.accountLockedUntil = null;
+    user.lastLoginAt = new Date();
+    await user.save();
 
     // Generate token
     const token = jwt.sign(

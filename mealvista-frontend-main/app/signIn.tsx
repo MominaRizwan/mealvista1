@@ -296,7 +296,7 @@ export default function MealVistaSignIn() {
   // Google sign-in is handled inside the nested `GoogleAuthButton` component
 
   const handleForgotPassword = () => {
-    router.push("/resetPassword");
+    router.push("/forgotPassword");
   };
 
   const handleSignUp = () => {

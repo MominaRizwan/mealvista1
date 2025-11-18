@@ -10,6 +10,9 @@ export default function Layout() {
           <Stack.Screen name="index" /> {/* Splash */}
           <Stack.Screen name="signup" /> {/* Sign Up */}
           <Stack.Screen name="signIn" /> {/* Sign In */}
+          <Stack.Screen name="forgotPassword" /> {/* Forgot Password */}
+          <Stack.Screen name="verifyOTP" /> {/* Verify OTP */}
+          <Stack.Screen name="verifyEmailOTP" /> {/* Verify Email OTP */}
           <Stack.Screen name="resetPassword" /> {/* Reset Password */}
           <Stack.Screen name="googleSignIn" /> {/* Google Sign In */}
           <Stack.Screen name="dietaryPreference" /> {/* Dietary Preference */}

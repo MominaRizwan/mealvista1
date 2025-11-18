@@ -73,20 +73,13 @@ export default function UserManagement() {
       user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDeleteUser = (user: User) => {
-    console.log("Delete button clicked for user:", user);
-    
-    // Prevent admin from deleting themselves
+  const handleDeleteUser = async (user: User) => {
     const userId = user._id || user.id || '';
     const currentUserId = currentUser?.id || '';
     
-    console.log("User ID:", userId, "Current User ID:", currentUserId);
-    
+    // Prevent admin from deleting themselves
     if (userId === currentUserId) {
-      Alert.alert(
-        "Cannot Delete",
-        "You cannot delete your own account. Please ask another admin to do this."
-      );
+      Alert.alert("Cannot Delete", "You cannot delete your own account.");
       return;
     }
 
@@ -96,39 +89,27 @@ export default function UserManagement() {
     }
 
     Alert.alert(
-      "Confirm Delete",
-      `Are you sure you want to delete ${user.name}?\n\nEmail: ${user.email}\n\nThis action cannot be undone and the user will not be able to sign up again with this email.`,
+      "Delete User",
+      `Delete ${user.name} (${user.email})?`,
       [
+        { text: "Cancel", style: "cancel" },
         {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Yes, Delete",
+          text: "Delete",
           style: "destructive",
           onPress: async () => {
             try {
-              console.log("Deleting user with ID:", userId);
               setLoading(true);
-              const result = await deleteUser(userId);
-              console.log("Delete result:", result);
-              // Refresh the list immediately
+              await deleteUser(userId);
               await loadUsers();
               Alert.alert("Success", "User deleted successfully");
             } catch (error: any) {
-              console.error("Delete error:", error);
-              console.error("Error response:", error.response);
-              Alert.alert(
-                "Error",
-                error.response?.data?.message || error.message || "Failed to delete user"
-              );
+              Alert.alert("Error", error.response?.data?.message || error.message || "Failed to delete user");
             } finally {
               setLoading(false);
             }
           },
         },
-      ],
-      { cancelable: true }
+      ]
     );
   };
 
@@ -245,17 +226,39 @@ export default function UserManagement() {
                       </View>
                     </View>
                   </View>
-                  <TouchableOpacity 
-                    style={styles.deleteButton}
-                    onPress={() => {
-                      console.log("Delete button pressed for:", user.name, user);
-                      handleDeleteUser(user);
-                    }}
-                    activeOpacity={0.7}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  >
-                    <Ionicons name="trash-outline" size={22} color="#DC2626" />
-                  </TouchableOpacity>
+                  <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                    <TouchableOpacity 
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteUser(user)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="trash-outline" size={22} color="#DC2626" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={async () => {
+                        const uid = user._id || user.id;
+                        if (!uid) { Alert.alert("Error", "No user ID"); return; }
+                        Alert.alert("Delete User", `Delete ${user.name}?`, [
+                          { text: "No", style: "cancel" },
+                          {
+                            text: "Yes",
+                            onPress: async () => {
+                              try {
+                                await deleteUser(uid);
+                                await loadUsers();
+                                Alert.alert("Done", "User deleted");
+                              } catch (e: any) {
+                                Alert.alert("Error", e.message);
+                              }
+                            }
+                          }
+                        ]);
+                      }}
+                      style={{ backgroundColor: '#DC2626', padding: 8, borderRadius: 6 }}
+                    >
+                      <Text style={{ color: '#FFF', fontSize: 11, fontWeight: 'bold' }}>DELETE</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             )}

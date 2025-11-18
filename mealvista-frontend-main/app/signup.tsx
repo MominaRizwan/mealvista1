@@ -23,6 +23,7 @@ import {
 } from "../lib/googleAuth";
 import { isValidGmail, isStrongPassword, isNonEmpty } from "../lib/validators";
 import { getOnboardingStatus } from "../lib/onboardingStorage";
+import api from "../lib/api";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -271,14 +272,24 @@ export default function MealVistaSignUp() {
 
     try {
       setLoading(true);
-      const response = await signup({
+      
+      // Request OTP instead of directly creating account
+      const response = await api.post('/api/otp-auth/signup/request-otp', {
         name: fullName.trim(),
         email: email.trim().toLowerCase(),
         password,
       });
 
-      // Immediately navigate to login after successful signup
-      router.replace("/signIn");
+      // Navigate to OTP verification screen
+      router.push({
+        pathname: "/verifyEmailOTP" as any,
+        params: {
+          email: email.trim().toLowerCase(),
+          name: fullName.trim(),
+          password: password,
+        },
+      });
+
     } catch (error: unknown) {
       console.error('Signup error:', error);
       let message = "Unable to sign up";
